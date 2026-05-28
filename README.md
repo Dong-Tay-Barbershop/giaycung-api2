@@ -1,14 +1,76 @@
-# Node.js template
+# GiayCung API
 
-This is a Node.js project with an HTTP server.
+REST API for the GiayCung platform — built with Express.js, TypeScript, and MongoDB, deployed on Vercel serverless.
 
-Add your [configuration](https://codesandbox.io/docs/projects/learn/setting-up/tasks) to optimize it for [CodeSandbox](https://codesandbox.io).
+## Stack
 
-## How does this work?
+- **Runtime**: Node.js >= 18
+- **Framework**: Express.js + TypeScript
+- **Database**: MongoDB (Mongoose)
+- **Deploy**: Vercel (serverless)
+- **Auth**: JWT HS256
 
-We run `yarn start` to start an HTTP server that runs on http://localhost:8080. You can open new or existing devtools with the + button next to the devtool tabs.
+## Project Structure
 
-## Resources
+```
+api/
+└── index.ts          ← Vercel entrypoint
+src/
+├── config/db.ts      ← MongoDB connection (cached)
+├── middleware/       ← auth, cors, errorHandler
+├── models/           ← Mongoose schemas
+├── routes/           ← Express routers
+├── controllers/      ← Request handlers
+├── services/         ← Business logic / DB queries
+└── app.ts            ← Express app setup
+server.ts             ← Local dev entry
+scripts/              ← seed-admin, migrate
+```
 
-- [CodeSandbox — Docs](https://codesandbox.io/docs)
-- [CodeSandbox — Discord](https://discord.gg/Ggarp3pX5H)
+## Setup
+
+```bash
+npm install
+cp .env.example .env   # fill in MONGODB_URI, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
+npm run seed           # create initial admin account
+```
+
+## Development
+
+```bash
+npm run dev        # tsx watch (port 3000)
+vercel dev         # simulate Vercel serverless locally
+```
+
+## Build & Deploy
+
+```bash
+npm run build      # compile TypeScript → dist/
+vercel --prod      # deploy to Vercel
+```
+
+## Testing
+
+```bash
+npm test
+```
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/auth/login` | Admin login |
+| GET/POST | `/api/products` | Products |
+| GET/POST | `/api/orders` | Orders |
+| GET/POST | `/api/services` | Services |
+| GET/POST | `/api/service-orders` | Service orders |
+| GET/POST | `/api/news` | News |
+| GET/POST | `/api/contacts` | Contacts |
+| GET/POST | `/api/messages` | Messages |
+
+## Environment Variables
+
+See [.env.example](.env.example) for the full list. Required:
+
+- `MONGODB_URI`
+- `JWT_SECRET`

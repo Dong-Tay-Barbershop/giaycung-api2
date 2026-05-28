@@ -1,6 +1,6 @@
 import { Request } from "express";
-import News from "@/models/News";
-import { parsePagination, paginatedResponse } from "@/utils/pagination";
+import News from "../models/News";
+import { parsePagination, paginatedResponse } from "../utils/pagination";
 
 export async function listNews(query: Request["query"]) {
   // GET?id= → single item

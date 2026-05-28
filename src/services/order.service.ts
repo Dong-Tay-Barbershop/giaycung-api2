@@ -1,6 +1,6 @@
 import { Request } from "express";
-import Order from "@/models/Order";
-import { parsePagination, paginatedResponse } from "@/utils/pagination";
+import Order from "../models/Order";
+import { parsePagination, paginatedResponse } from "../utils/pagination";
 
 function calcTotal(items: Array<{ quantity: number; price: number }>) {
   return items.reduce((sum, i) => sum + i.quantity * i.price, 0);

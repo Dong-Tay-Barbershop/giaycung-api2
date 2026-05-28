@@ -1,6 +1,6 @@
 import { Request } from "express";
-import Message from "@/models/Message";
-import { parsePagination, paginatedResponse } from "@/utils/pagination";
+import Message from "../models/Message";
+import { parsePagination, paginatedResponse } from "../utils/pagination";
 
 export async function listMessages(query: Request["query"]) {
   const { page, limit, skip } = parsePagination(query);

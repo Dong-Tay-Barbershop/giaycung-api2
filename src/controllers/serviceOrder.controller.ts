@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as svc from "@/services/serviceOrder.service";
+import * as svc from "../services/serviceOrder.service";
 
 // ===== ORDERS =====
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { requireAdmin } from "@/middleware/auth";
-import { asyncHandler } from "@/middleware/errorHandler";
-import * as ctrl from "@/controllers/product.controller";
+import { requireAdmin } from "../middleware/auth";
+import { asyncHandler } from "../middleware/errorHandler";
+import * as ctrl from "../controllers/product.controller";
 
 const router = Router();
 

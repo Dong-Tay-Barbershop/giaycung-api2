@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as svc from "@/services/message.service";
+import * as svc from "../services/message.service";
 
 export async function list(req: Request, res: Response): Promise<void> {
   res.json(await svc.listMessages(req.query));

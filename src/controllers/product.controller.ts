@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as svc from "@/services/product.service";
+import * as svc from "../services/product.service";
 
 export async function list(req: Request, res: Response): Promise<void> {
   const result = await svc.listProducts(req.query);

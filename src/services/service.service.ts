@@ -1,6 +1,6 @@
 import { Request } from "express";
-import Service from "@/models/Service";
-import { parsePagination, paginatedResponse } from "@/utils/pagination";
+import Service from "../models/Service";
+import { parsePagination, paginatedResponse } from "../utils/pagination";
 
 export async function listServices(query: Request["query"]) {
   const { page, limit, skip } = parsePagination(query);

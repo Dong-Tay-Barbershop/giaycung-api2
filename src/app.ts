@@ -1,17 +1,17 @@
 import "dotenv/config";
 import express from "express";
 import morgan from "morgan";
-import connectDB from "@/config/db";
-import { corsMiddleware } from "@/middleware/cors";
-import { errorHandler, notFound } from "@/middleware/errorHandler";
-import authRouter from "@/routes/auth.route";
-import productRouter from "@/routes/product.route";
-import serviceRouter from "@/routes/service.route";
-import newsRouter from "@/routes/news.route";
-import messageRouter from "@/routes/message.route";
-import contactRouter from "@/routes/contact.route";
-import orderRouter from "@/routes/order.route";
-import serviceOrderRouter from "@/routes/serviceOrder.route";
+import connectDB from "./config/db";
+import { corsMiddleware } from "./middleware/cors";
+import { errorHandler, notFound } from "./middleware/errorHandler";
+import authRouter from "./routes/auth.route";
+import productRouter from "./routes/product.route";
+import serviceRouter from "./routes/service.route";
+import newsRouter from "./routes/news.route";
+import messageRouter from "./routes/message.route";
+import contactRouter from "./routes/contact.route";
+import orderRouter from "./routes/order.route";
+import serviceOrderRouter from "./routes/serviceOrder.route";
 
 if (process.env.NODE_ENV !== "test") {
   connectDB().catch(console.error);

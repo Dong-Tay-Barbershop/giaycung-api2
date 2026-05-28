@@ -2,8 +2,8 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose from "mongoose";
 import request from "supertest";
 import bcrypt from "bcrypt";
-import app from "@/app";
-import Admin from "@/models/Admin";
+import app from "../app";
+import Admin from "../models/Admin";
 
 // ─── Setup ───────────────────────────────────────────────────────────────────
 

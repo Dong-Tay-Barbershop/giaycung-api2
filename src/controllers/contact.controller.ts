@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as svc from "@/services/contact.service";
+import * as svc from "../services/contact.service";
 
 export async function list(req: Request, res: Response): Promise<void> {
   res.json(await svc.listContacts(req.query));

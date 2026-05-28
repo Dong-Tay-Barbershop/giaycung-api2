@@ -1,6 +1,6 @@
 import { Request } from "express";
-import Product from "@/models/Product";
-import { parsePagination, paginatedResponse } from "@/utils/pagination";
+import Product from "../models/Product";
+import { parsePagination, paginatedResponse } from "../utils/pagination";
 
 export async function listProducts(query: Request["query"]) {
   const { page, limit, skip } = parsePagination(query);

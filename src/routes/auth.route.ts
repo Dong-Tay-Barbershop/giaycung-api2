@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { asyncHandler } from "@/middleware/errorHandler";
-import { login } from "@/controllers/auth.controller";
+import { asyncHandler } from "../middleware/errorHandler";
+import { login } from "../controllers/auth.controller";
 
 const router = Router();
 

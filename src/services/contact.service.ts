@@ -1,6 +1,6 @@
 import { Request } from "express";
-import Contact from "@/models/Contact";
-import { parsePagination, paginatedResponse } from "@/utils/pagination";
+import Contact from "../models/Contact";
+import { parsePagination, paginatedResponse } from "../utils/pagination";
 
 export async function listContacts(query: Request["query"]) {
   const { page, limit, skip } = parsePagination(query);

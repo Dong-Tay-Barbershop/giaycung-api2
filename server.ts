@@ -1,6 +1,6 @@
 import "dotenv/config";
-import app from "@/app";
-import connectDB from "@/config/db";
+import app from "./src/app";
+import connectDB from "./src/config/db";
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 

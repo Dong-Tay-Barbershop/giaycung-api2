@@ -13,10 +13,6 @@
     "resolveJsonModule": true,
     "ignoreDeprecations": "6.0",
     "types": ["jest", "node"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
   },
   "include": ["src/**/*", "scripts/**/*", "server.ts"],
   "exclude": ["node_modules", "dist"]

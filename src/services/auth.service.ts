@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
-import Admin from "@/models/Admin";
-import { signToken } from "@/middleware/auth";
+import Admin from "../models/Admin";
+import { signToken } from "../middleware/auth";
 
 export async function loginAdmin(email: string, password: string) {
   const secret = (process.env.JWT_SECRET || "").trim();

@@ -1,6 +1,6 @@
 import { Request } from "express";
-import ServiceOrder from "@/models/ServiceOrder";
-import { parsePagination, paginatedResponse } from "@/utils/pagination";
+import ServiceOrder from "../models/ServiceOrder";
+import { parsePagination, paginatedResponse } from "../utils/pagination";
 
 // ===== ORDER NUMBER =====
 

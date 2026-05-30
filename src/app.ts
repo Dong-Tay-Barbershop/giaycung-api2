@@ -14,16 +14,24 @@ import contactRouter from "./routes/contact.route";
 import orderRouter from "./routes/order.route";
 import serviceOrderRouter from "./routes/serviceOrder.route";
 
-if (process.env.NODE_ENV !== "test") {
-  connectDB().catch(console.error);
-}
-
 const app = express();
 
 app.use(corsMiddleware);
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+// Ensure DB connected before any route handler runs (serverless cold start safe)
+if (process.env.NODE_ENV !== "test") {
+  app.use(async (_req, _res, next) => {
+    try {
+      await connectDB();
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+}
 
 // Health check
 app.get("/api/ping", (_req, res) => {

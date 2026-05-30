@@ -102,7 +102,11 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   if (timingSafeEqualStr(token, secret)) return next();
 
   // JWT HS256
-  if (verifyJwtHs256(token, secret).ok) return next();
+  const jwt = verifyJwtHs256(token, secret);
+  if (jwt.ok) {
+    res.locals.adminEmail = jwt.payload?.["email"] as string | undefined;
+    return next();
+  }
 
   res.status(401).json({ ok: false, message: "Unauthorized" });
 }

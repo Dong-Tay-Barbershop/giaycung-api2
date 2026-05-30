@@ -5,6 +5,7 @@ import connectDB from "./config/db";
 import { corsMiddleware } from "./middleware/cors";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 import authRouter from "./routes/auth.route";
+import adminRouter from "./routes/admin.route";
 import productRouter from "./routes/product.route";
 import serviceRouter from "./routes/service.route";
 import newsRouter from "./routes/news.route";
@@ -30,6 +31,7 @@ app.get("/api/ping", (_req, res) => {
 });
 
 app.use("/api", authRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/products", productRouter);
 app.use("/api/services", serviceRouter);
 app.use("/api/news", newsRouter);

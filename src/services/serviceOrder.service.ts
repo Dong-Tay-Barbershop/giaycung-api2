@@ -2,6 +2,17 @@ import { Request } from "express";
 import ServiceOrder from "../models/ServiceOrder";
 import { parsePagination, paginatedResponse } from "../utils/pagination";
 
+const ORDER_STATUSES = ["pending", "processing", "completed", "cancelled"] as const;
+type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+function normalizeOrderStatus(value: unknown): OrderStatus | undefined {
+  if (value == null) return undefined;
+  const v = String(value).toLowerCase().trim();
+  return (ORDER_STATUSES as readonly string[]).includes(v)
+    ? (v as OrderStatus)
+    : undefined;
+}
+
 // ===== ORDER NUMBER =====
 
 async function nextOrderNumber(): Promise<string> {
@@ -54,15 +65,51 @@ export async function createOrder(body: Record<string, unknown>) {
   const createdDate = String(body.createdDate || new Date().toISOString().slice(0, 10));
   const { assignedTo, totalAmount, status } = body;
 
-  const doc = await ServiceOrder.create({ customerName, customerPhone, orderNumber, createdDate, assignedTo, totalAmount, status, shoes: [] });
-  return { id: doc.id, orderNumber: doc.orderNumber };
+  const paymentNote = body.paymentNote != null ? String(body.paymentNote) : "";
+
+  // paymentMethod cố tình không được set khi tạo đơn — nó sẽ tự xác định khi
+  // có hành động thanh toán (tạo QR ⇒ vietqr, admin xác nhận ⇒ cash).
+  const doc = await ServiceOrder.create({
+    customerName,
+    customerPhone,
+    orderNumber,
+    createdDate,
+    assignedTo,
+    totalAmount,
+    status,
+    paymentNote,
+    shoes: [],
+  });
+  return {
+    id: doc.id,
+    orderNumber: doc.orderNumber,
+    paymentMethod: doc.paymentMethod || null,
+    paymentStatus: doc.paymentStatus,
+  };
 }
 
 export async function updateOrder(id: string, body: Record<string, unknown>) {
-  const { status, assignedTo, totalAmount } = body;
-  const doc = await ServiceOrder.findOneAndUpdate({ id }, { status, assignedTo, totalAmount }, { new: true });
-  if (!doc) throw Object.assign(new Error("Not found"), { status: 404 });
-  return { id: doc.id };
+  const order = await ServiceOrder.findOne({ id });
+  if (!order) throw Object.assign(new Error("Not found"), { status: 404 });
+
+  if (body.status !== undefined) {
+    const nextStatus = normalizeOrderStatus(body.status);
+    if (!nextStatus) throw Object.assign(new Error("Invalid status"), { status: 400 });
+    order.status = nextStatus;
+  }
+  if (typeof body.assignedTo === "string") order.assignedTo = body.assignedTo;
+  if (body.totalAmount != null) order.totalAmount = Number(body.totalAmount);
+  if (typeof body.paymentNote === "string") order.paymentNote = body.paymentNote;
+
+  // paymentMethod không cho phép sửa qua PATCH — nó được set bởi hành động
+  // thanh toán (xem vietqr.service: createPaymentQr / confirmCashPayment).
+
+  await order.save();
+  return {
+    id: order.id,
+    paymentMethod: order.paymentMethod || null,
+    paymentStatus: order.paymentStatus,
+  };
 }
 
 export async function deleteOrder(id: string) {

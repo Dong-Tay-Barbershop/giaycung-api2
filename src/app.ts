@@ -13,13 +13,21 @@ import messageRouter from "./routes/message.route";
 import contactRouter from "./routes/contact.route";
 import orderRouter from "./routes/order.route";
 import serviceOrderRouter from "./routes/serviceOrder.route";
+import vietqrRouter from "./routes/vietqr.route";
 
 const app = express();
 
 app.use(corsMiddleware);
 app.use(morgan("dev"));
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// VietQR callback routes mount their own JSON parser with a tighter limit.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/vqr/")) return next();
+  return express.json({ limit: "10mb" })(req, res, next);
+});
+app.use((req, res, next) => {
+  if (req.path.startsWith("/vqr/")) return next();
+  return express.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+});
 
 // Ensure DB connected before any route handler runs (serverless cold start safe)
 if (process.env.NODE_ENV !== "test") {
@@ -47,6 +55,7 @@ app.use("/api/messages", messageRouter);
 app.use("/api/contact", contactRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/service-orders", serviceOrderRouter);
+app.use("/vqr", vietqrRouter);
 
 app.use(notFound);
 app.use(errorHandler);

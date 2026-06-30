@@ -477,16 +477,20 @@ Tạo đơn hàng mới. Public.
   "items": [
     {
       "productId": "prd_1234567890",
-      "productName": "Giày Nike",
-      "quantity": 2,
-      "price": 150000
+      "quantity": 2
     }
-  ]
+  ],
+  "paymentMethod": "vietqr"
 }
 ```
 
-Fields bắt buộc: `customerName`, `customerPhone`, `customerAddress`, `items` (ít nhất 1 item với `productName`, `quantity > 0`, `price >= 0`).  
-`totalAmount` tự tính = `sum(quantity × price)`.
+Fields bắt buộc: `customerName`, `customerPhone`, `customerAddress`, `items` (ít
+nhất 1 item với `productId`, `quantity` là số nguyên dương).
+
+`paymentMethod` nhận `cod` hoặc `vietqr`, mặc định là `cod`.
+
+Backend lấy `productName` và `price` từ MongoDB theo `productId`. Giá hoặc tên do
+frontend gửi lên sẽ bị bỏ qua. `totalAmount` được tính từ giá trong database.
 
 **Response 200**
 ```json
@@ -494,10 +498,73 @@ Fields bắt buộc: `customerName`, `customerPhone`, `customerAddress`, `items`
   "ok": true,
   "data": {
     "id": "ORD-A1B2C3",
-    "customerName": "Nguyễn Văn A",
-    "totalAmount": 300000,
-    "status": "pending",
-    "items": [...]
+    "checkoutToken": "<random-capability-token>",
+    "paymentMethod": "vietqr",
+    "paymentStatus": "unpaid"
+  }
+}
+```
+
+`checkoutToken` chỉ trả một lần khi tạo order. Frontend phải giữ token này để
+tạo QR và truy vấn trạng thái thanh toán, nhưng không lưu vào log hoặc URL.
+
+---
+
+### `POST /api/orders/:id/payment/vietqr`
+Tạo VietQR động cho đơn hàng.
+
+**Header**
+
+```http
+X-Checkout-Token: <checkoutToken>
+```
+
+Backend luôn dùng `totalAmount` đã tính từ giá sản phẩm trong database, không
+nhận số tiền từ frontend.
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "orderId": "ORD-A1B2C3",
+    "amount": 300000,
+    "paymentStatus": "pending",
+    "qrCode": "000201...",
+    "qrLink": "https://...",
+    "content": "GIAYCUNG ORDA1B2C3",
+    "bankCode": "MB",
+    "bankAccount": "0123456789",
+    "bankAccountName": "GIAY CUNG"
+  }
+}
+```
+
+Lỗi thường gặp: `401` sai checkout token, `409` đơn đã hủy/đã thanh toán,
+`502` VietQR lỗi hoặc timeout, `503` thiếu cấu hình VietQR.
+
+---
+
+### `GET /api/orders/:id/payment-status`
+Truy vấn trạng thái thanh toán để frontend polling.
+
+**Header**
+
+```http
+X-Checkout-Token: <checkoutToken>
+```
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "orderId": "ORD-A1B2C3",
+    "paymentStatus": "paid",
+    "paidAmount": 300000,
+    "paidAt": "2026-06-13T10:12:30.000Z"
   }
 }
 ```
@@ -529,11 +596,79 @@ Soft delete đơn hàng (set status → `cancelled`). **Admin only.**
 
 ---
 
+## VietQR Callback
+
+Hai endpoint server-to-server để VietQR gửi thông báo giao dịch. Không dùng
+admin JWT và không gọi từ frontend.
+
+### `POST /vqr/api/token_generate`
+
+VietQR lấy callback token bằng Basic Authentication.
+
+```http
+Authorization: Basic base64(VIETQR_CALLBACK_USERNAME:VIETQR_CALLBACK_PASSWORD)
+```
+
+**Response 200**
+
+```json
+{
+  "access_token": "<jwt-hs256>",
+  "token_type": "Bearer",
+  "expires_in": 300
+}
+```
+
+### `POST /vqr/bank/api/transaction-sync`
+
+VietQR gửi giao dịch ngân hàng bằng Bearer token nhận từ endpoint trên.
+
+Backend chỉ xác nhận thanh toán khi loại giao dịch, tài khoản nhận, mã đơn, nội
+dung và số tiền đều khớp. `transactionid` được xử lý idempotent.
+
+```http
+Authorization: Bearer <callback-token>
+```
+
+```json
+{
+  "bankaccount": "0123456789",
+  "amount": 300000,
+  "transType": "C",
+  "content": "GIAYCUNG ORDA1B2C3",
+  "transactionid": "TX123",
+  "transactiontime": 1781322614000,
+  "referencenumber": "REF123",
+  "orderId": "ORDA1B2C3"
+}
+```
+
+---
+
 ## Service Orders
 
 Đơn dịch vụ giặt/vệ sinh giày.
 
-Status đơn: `pending` | `processing` | `completed` | `cancelled`  
+### Trạng thái — 3 trục độc lập
+
+Mỗi đơn dịch vụ có **3 trường trạng thái tách biệt** để FE/BE đồng bộ:
+
+| Trường | Giá trị | Ý nghĩa |
+|---|---|---|
+| `status` | `pending` \| `processing` \| `completed` \| `cancelled` | Tiến độ công việc giặt giày |
+| `paymentMethod` | `null` \| `cash` \| `vietqr` | Phương thức thanh toán. **`null` khi tạo đơn** — chỉ được set khi có hành động thanh toán thực tế (tạo QR ⇒ `vietqr`; admin xác nhận đã nhận tiền mặt ⇒ `cash`) |
+| `paymentStatus` | `unpaid` \| `pending` \| `paid` \| `failed` \| `refunded` | Trạng thái thanh toán |
+
+Quy tắc:
+
+- `status` và `paymentStatus` **độc lập**: đơn có thể `completed` (giặt xong) trong khi `paymentStatus=unpaid` (chờ khách đến lấy + trả tiền) — và ngược lại.
+- `paymentStatus=pending` nghĩa là *đã tạo QR / đang chờ chuyển khoản* (đừng nhầm với `status=pending`).
+- `paymentMethod` **không** được set khi tạo đơn và **không** sửa được qua `PATCH`. Nó là kết quả của hành động:
+  - Tạo QR (qua admin hoặc khách bấm "Thanh toán QR" ở trang tra cứu) ⇒ `vietqr`.
+  - Admin click "Đã thu tiền mặt" ⇒ `cash`.
+- Đơn `cancelled` không thể chuyển sang `paid` (cả VietQR callback và confirm thủ công đều bị BE từ chối với 409).
+- `confirm-cash` có thể chạy trên đơn đang `vietqr` pending (khách đổi ý trả tiền mặt) — BE ghi đè `paymentMethod=cash`. VietQR callback đến sau sẽ bị từ chối vì `paymentStatus=paid`.
+
 Status giày: `received` | `processing` | `completed`
 
 ---
@@ -596,17 +731,27 @@ Tạo đơn dịch vụ mới. **Admin only.**
   "assignedTo": "Nhân viên B",
   "status": "pending",
   "createdDate": "2024-01-15",
-  "orderNumber": "ORD-010"
+  "orderNumber": "ORD-010",
+  "paymentNote": ""
 }
 ```
 
 Fields bắt buộc: `customerName`, `customerPhone`.  
 `orderNumber` tự sinh tăng dần (`ORD-001`, `ORD-002`, ...) nếu không truyền.  
-`createdDate` mặc định là ngày hiện tại (YYYY-MM-DD).
+`createdDate` mặc định là ngày hiện tại (YYYY-MM-DD).  
+**Không nhận `paymentMethod`** — đơn vừa tạo luôn có `paymentMethod=null`; method chỉ được set khi có hành động thanh toán (`confirm-cash` ⇒ `cash`; `payment/vietqr` ⇒ `vietqr`). Nếu FE lỡ gửi field này, BE bỏ qua.
 
 **Response 200**
 ```json
-{ "ok": true, "data": { "id": "ord_1234567890", "orderNumber": "ORD-010" } }
+{
+  "ok": true,
+  "data": {
+    "id": "ord_1234567890",
+    "orderNumber": "ORD-010",
+    "paymentMethod": null,
+    "paymentStatus": "unpaid"
+  }
+}
 ```
 
 ---
@@ -619,15 +764,25 @@ Cập nhật đơn dịch vụ. **Admin only.**
 {
   "status": "completed",
   "assignedTo": "Nhân viên C",
-  "totalAmount": 250000
+  "totalAmount": 250000,
+  "paymentNote": ""
 }
 ```
 
-Updatable fields: `customerName`, `customerPhone`, `createdDate`, `totalAmount`, `status`, `assignedTo`, `orderNumber`.
+Updatable fields: `status`, `assignedTo`, `totalAmount`, `paymentNote`.
+
+`paymentMethod` **không** sửa được qua endpoint này — nếu FE gửi lên, BE bỏ qua. Đổi `status` không bị ràng buộc bởi `paymentStatus`. Hai trục độc lập.
 
 **Response 200**
 ```json
-{ "ok": true, "data": { "id": "ord_1234567890" } }
+{
+  "ok": true,
+  "data": {
+    "id": "ord_1234567890",
+    "paymentMethod": null,
+    "paymentStatus": "unpaid"
+  }
+}
 ```
 
 ---
@@ -641,6 +796,114 @@ Hard delete order + soft-delete tất cả giày thuộc đơn (set `deleted=tru
 ```json
 { "ok": true, "data": { "id": "ord_1234567890" } }
 ```
+
+---
+
+### Service Order — Payment endpoints
+
+Tất cả endpoint thanh toán dưới đây thao tác trên 3 trục `status`, `paymentMethod`, `paymentStatus` đã mô tả ở đầu mục Service Orders.
+
+#### `GET /api/service-orders/track/:code/payment-status`
+Public. Khách dùng `orderNumber` để tra trạng thái thanh toán + thông tin QR (rate-limit 240 req/15 phút).
+
+**Response 200**
+
+```json
+{
+  "ok": true,
+  "data": {
+    "orderId": "ord_...",
+    "orderNumber": "ORD-001",
+    "paymentMethod": "vietqr",
+    "paymentStatus": "pending",
+    "paymentNote": "",
+    "amount": 250000,
+    "paidAmount": 0,
+    "paidAt": null,
+    "qrCode": "000201...",
+    "qrLink": "https://...",
+    "content": "GIAYCUNG ORD0011A2B",
+    "bankCode": "MB",
+    "bankAccount": "0123456789",
+    "bankAccountName": "GIAY CUNG"
+  }
+}
+```
+
+FE dùng response này để: vẽ QR (`qrCode` là chuỗi EMVCo, có thể render thành ảnh QR), hiển thị nội dung chuyển khoản, và polling `paymentStatus` đến khi `=== "paid"`. **QR không có hạn** — VietQR/EMVCo không expire; BE giữ idempotent (tạo lại = trả về QR cũ) đến khi đơn `paid` hoặc `cancelled`.
+
+---
+
+#### `POST /api/service-orders/track/:code/payment/vietqr`
+Public. Khách bấm "Thanh toán bằng QR" trên trang tra cứu → BE tạo (hoặc trả về QR còn hiệu lực — idempotent trong 15 phút). Rate-limit 20 req/10 phút.
+
+Side effect: BE tự đặt `paymentMethod=vietqr` và `paymentStatus=pending` nếu trước đó là `cash`/`bank_transfer`.
+
+**Response 200** — giống `GET payment-status` ở trên.
+
+Lỗi: `409` đơn đã `cancelled` hoặc đã `paid`; `502` VietQR provider lỗi; `503` thiếu env var VietQR.
+
+---
+
+#### `POST /api/service-orders/:id/payment/vietqr`
+**Admin only.** Tạo QR cho đơn theo `id` hoặc `orderNumber`. Idempotent — đơn đã có QR (chưa `paid`, chưa `cancelled`) thì luôn trả lại QR cũ, không gọi VietQR lần nữa.
+
+Side effect: tự đặt `paymentMethod=vietqr`.
+
+**Response 200** — giống public version.
+
+---
+
+#### `POST /api/service-orders/:id/payment/confirm-cash`
+**Admin only.** Xác nhận đã nhận tiền mặt. Set `paymentMethod=cash` + `paymentStatus=paid`. Hoạt động kể cả khi đơn chưa có method **hoặc** đang ở `paymentMethod=vietqr` (khách đổi ý trả tiền mặt khi đến cửa hàng).
+
+**Body**
+```json
+{
+  "note": "Khách thanh toán tiền mặt khi nhận giày",
+  "paidAmount": 250000
+}
+```
+
+- `note` ghi chú nội bộ (tuỳ chọn).
+- `paidAmount` tuỳ chọn — mặc định lấy `totalAmount`.
+
+**Response 200**
+```json
+{
+  "ok": true,
+  "data": {
+    "id": "ord_...",
+    "orderNumber": "ORD-001",
+    "paymentMethod": "cash",
+    "paymentStatus": "paid",
+    "paidAmount": 250000,
+    "paidAt": "2026-06-29T07:30:00.000Z"
+  }
+}
+```
+
+Lỗi: `409` đơn `cancelled` hoặc đã `paid`.
+
+---
+
+#### `POST /api/service-orders/:id/payment/manual-mark-paid`
+**Admin only.** Override khẩn cấp — dùng khi đơn `vietqr` mà callback không về (khách đã chuyển khoản, BE không nhận callback từ VietQR), admin đối soát thủ công với sao kê ngân hàng và đánh dấu đã thanh toán. Audit trail bắt buộc.
+
+**Body**
+```json
+{
+  "reason": "Khách gửi ảnh sao kê, BE callback không nhận được",
+  "transactionRef": "MANUAL-REF-001",
+  "paidAmount": 250000
+}
+```
+
+- `reason` **bắt buộc** (≥ 5 ký tự).
+- `transactionRef` **bắt buộc**.
+- `paidAmount` tuỳ chọn — mặc định lấy `totalAmount`.
+
+Khác với `confirm`: `manual-mark-paid` luôn yêu cầu reason để ghi audit, dùng cho trường hợp ngoại lệ. `confirm` dùng cho flow chính của cash / bank_transfer.
 
 ---
 

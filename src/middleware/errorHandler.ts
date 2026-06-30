@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { safeError } from "../utils/redact";
 
 export function notFound(req: Request, res: Response): void {
   res.status(404).json({ ok: false, message: "Not found" });
@@ -11,7 +12,7 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ): void {
-  console.error(err);
+  console.error(safeError(err));
   const status = err.status || err.statusCode || 500;
   const message = status < 500 ? (err.message || "Bad request") : "Internal server error";
   res.status(status).json({ ok: false, message });

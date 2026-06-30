@@ -62,6 +62,10 @@ npm test
 | POST | `/api/auth/login` | Admin login |
 | GET/POST | `/api/products` | Products |
 | GET/POST | `/api/orders` | Orders |
+| POST | `/api/orders/:id/payment/vietqr` | Generate VietQR payment |
+| GET | `/api/orders/:id/payment-status` | Poll payment status |
+| POST | `/vqr/api/token_generate` | VietQR callback token |
+| POST | `/vqr/bank/api/transaction-sync` | VietQR transaction callback |
 | GET/POST | `/api/services` | Services |
 | GET/POST | `/api/service-orders` | Service orders |
 | GET/POST | `/api/news` | News |
@@ -74,3 +78,6 @@ See [.env.example](.env.example) for the full list. Required:
 
 - `MONGODB_URI`
 - `JWT_SECRET`
+
+VietQR variables are documented in [.env.example](.env.example) and
+[docs/vietqr-payment-integration.md](docs/vietqr-payment-integration.md).
